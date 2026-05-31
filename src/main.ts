@@ -72,9 +72,22 @@ async function bootstrap() {
     'http://127.0.0.1:3002',
     'http://127.0.0.1:3003',
   ];
+  const allowedOrigins = [
+    ...devOrigins,
+    process.env.FRONTEND_URL,
+    'https://al-huda-two.vercel.app',
+  ].filter(Boolean) as string[];
+
   app.enableCors({
-    origin: [...devOrigins, process.env.FRONTEND_URL].filter(Boolean),
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origine non autorisée — ${origin}`));
+      }
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    credentials: true,
   });
 
   // Validation globale des DTOs
