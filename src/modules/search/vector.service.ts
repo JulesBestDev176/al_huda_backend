@@ -11,27 +11,44 @@ export interface VectorSearchResult {
 @Injectable()
 export class VectorService implements OnModuleInit {
   private readonly logger = new Logger(VectorService.name);
-  private readonly http: AxiosInstance;
+  private readonly http: AxiosInstance | null = null;
   private readonly collection: string;
+  private readonly enabled: boolean;
 
   constructor(private configService: ConfigService) {
-    const qdrantUrl = this.configService.get<string>('QDRANT_URL', 'http://localhost:6333');
+    const qdrantUrl = this.configService.get<string>('QDRANT_URL', '');
     const apiKey = this.configService.get<string>('QDRANT_API_KEY', '');
     this.collection = this.configService.get<string>('QDRANT_COLLECTION', 'hadiths');
 
-    this.http = axios.create({
-      baseURL: qdrantUrl,
-      headers: apiKey ? { 'api-key': apiKey } : {},
-      timeout: 10000,
-    });
+    this.enabled = this.isValidUrl(qdrantUrl);
+
+    if (this.enabled) {
+      this.http = axios.create({
+        baseURL: qdrantUrl,
+        headers: apiKey ? { 'api-key': apiKey } : {},
+        timeout: 10000,
+      });
+    } else {
+      this.logger.warn('QDRANT_URL non configuré — recherche vectorielle désactivée');
+    }
+  }
+
+  private isValidUrl(url: string): boolean {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async onModuleInit() {
-    await this.ensureCollection();
+    if (this.enabled) await this.ensureCollection();
   }
 
   // ─── Crée la collection Qdrant si elle n'existe pas ───────────────────────
   async ensureCollection(): Promise<void> {
+    if (!this.http) return;
     try {
       await this.http.get(`/collections/${this.collection}`);
       this.logger.log(`Collection Qdrant "${this.collection}" existe déjà`);
@@ -53,6 +70,7 @@ export class VectorService implements OnModuleInit {
     vector: number[],
     payload: Record<string, any>,
   ): Promise<void> {
+    if (!this.http) return;
     await this.http.put(`/collections/${this.collection}/points`, {
       points: [{ id: this.hashId(id), vector, payload: { ...payload, mongoId: id } }],
     });
@@ -61,6 +79,7 @@ export class VectorService implements OnModuleInit {
   async upsertBatch(
     points: Array<{ id: string; vector: number[]; payload: Record<string, any> }>,
   ): Promise<void> {
+    if (!this.http) return;
     const qdrantPoints = points.map((p) => ({
       id: this.hashId(p.id),
       vector: p.vector,
@@ -78,6 +97,7 @@ export class VectorService implements OnModuleInit {
     limit = 20,
     filter?: Record<string, any>,
   ): Promise<VectorSearchResult[]> {
+    if (!this.http) return [];
     const body: any = {
       vector,
       limit,
@@ -131,6 +151,7 @@ export class VectorService implements OnModuleInit {
   }
 
   async getCollectionInfo(): Promise<any> {
+    if (!this.http) return null;
     const response = await this.http.get(`/collections/${this.collection}`);
     return response.data.result;
   }
