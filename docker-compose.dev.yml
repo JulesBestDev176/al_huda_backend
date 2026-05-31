@@ -1,0 +1,14 @@
+# Override dev : démarre uniquement l'infra (Mongo, Qdrant, Redis)
+# Le backend et le frontend tournent en local (npm run start:dev / npm run dev)
+#
+# Usage :
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+services:
+  backend:
+    profiles:
+      - production
+
+  frontend:
+    profiles:
+      - production

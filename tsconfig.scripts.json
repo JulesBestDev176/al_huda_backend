@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2021",
+    "paths": {}
+  },
+  "include": ["scripts/**/*.ts", "src/**/*.ts"]
+}
